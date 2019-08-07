@@ -55,7 +55,7 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
     
 - 上传至 Google Drive（非必须）
 
-    由于我的小笔记本显存太小，跑 Unet 很容易 OOM（Out of Memory）故选择在 Google Colab 上跑。如果你还不知道 Colab 这个神器的话请看这儿 [薅资本主义羊毛，用Google免费GPU](https://zhuanlan.zhihu.com/p/33344222) 。当然啦，要使用 Colab 还是需要梯子的，如果你本地 GPU 显存够大或者有其他 GPU 资源，那也就没必要用 Colab 了，跳过该步吧。
+    由于我的小笔记本显存太小，跑 Unet 很容易 OOM（Out of Memory）故选择在 Google Colab 或 Kaggle Kernel 上跑。如果你还不知道 Colab 这个神器的话请看这儿 [薅资本主义羊毛，用Google免费GPU](https://zhuanlan.zhihu.com/p/33344222) 。当然啦，要使用 Colab 还是需要梯子的，如果你本地 GPU 显存够大或者有其他 GPU 资源，那也就没必要用 Colab 了，跳过该步吧。
 
     1.  首先将数据上传至你自己的 [Google Drive](https://drive.google.com/) 上（怎么上传我就不演示了:neutral_face:）。再新建一个 Colab 文件，看看可爱的猫猫，再点击 `装载 GOOGLE 云端硬盘` 
 
@@ -71,6 +71,8 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
         成功后将会看到如下结果：
 
+        
+        
         ![colab_step_3_1](Pic/Chapter-1/colab_step_3_1.png)
 
 ------
@@ -83,15 +85,21 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
 ### 先看看薅到的资本主义羊毛
 
-如果是使用 Colab 并启用 GPU 后端的话，执行以下指令
+如果是使用 Colab 或 Kaggle Kernel 并启用 GPU 后端的话，执行以下指令
 
 ```python
 !nvidia-smi
 ```
 
-![fastai_step_1](Pic/Chapter-1/fastai_step_nvsmi.png)
+>   -   在 Colab 执行上述指令后便可看到当前云服务器的 GPU 信息，不出意外的话都能连接到 [Tesla T4](https://www.nvidia.cn/data-center/tesla-t4/) GPU ，该卡有 16G 显存（也有可能是 Tesla K80）。Tesla T4 对混合精度运算有特殊加成，我接下来也将使用混合精度运算。
+>
+>       ![fastai_step_1](Pic/Chapter-1/fastai_step_nvsmi.png)
+>
+>   -   在 Kaggle Kernel 上执行的话，有一定可能申请到 [Tesla P100](https://www.nvidia.cn/data-center/tesla-p100/) ，这块卡的性能可比 Tesla T4 好太多了
+>
+>       ![kaggle_kernel](Pic/Chapter-1/kaggle_kernel.png)
 
-执行上述指令后便可看到当前云服务器的 GPU 信息，不出意外的话都能连接到 [Tesla T4](https://www.nvidia.cn/data-center/tesla-t4/) GPU ，该卡有 16G 显存。Tesla T4 对混合精度运算有特殊加成，我接下来也将使用混合精度运算。
+
 
 
 
@@ -121,7 +129,7 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
 ### 数据生成器
 
-1.   `SegmentationItemList` 是 `fastai.vision` 中自带的一个构造图像语义分割数据生成器的方法。 我们改写 `SegmentationItemList` 读取标签的方法 `open_mask` ，通过向其传入 `div=True` 参数使其读取标签文件后可以生成两个通道的标签文件，第一个通道无肿瘤部分的标签，第二个通道为有肿瘤部分的标签。不改动该处的话，在有的版本的 fastai 上就会出现莫名其妙的标签数组越界问题。我们构造一个新类，继承自 `SegmentationLabelList` ，重写其中的 `open_mask` 函数。具体实现代码如下：
+1.   `SegmentationItemList` 是 `fastai.vision` 中自带的一个构造图像语义分割数据生成器的方法。 我们改写 `SegmentationItemList` 读取标签的方法 `open` ，通过向其传入 `div=True` 参数使其读取标签文件后可以生成两个通道的标签文件，第一个通道无肿瘤部分的标签，第二个通道为有肿瘤部分的标签。不改动该处的话，在有的版本的 fastai 上就会出现莫名其妙的标签数组越界问题。我们构造一个新类，继承自 `SegmentationLabelList` ，重写其中的 `open` 函数。具体实现代码如下：
 
     ![fastai_step_datalist](Pic/Chapter-1/fastai_step_datalist.png)
 
@@ -135,6 +143,71 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
 3.  显示一些数据看看我们的生成器是否创建正确。fastai 中内置了很方便的方法，如下所示：
 
+    ![fastai_step_showbatch](Pic/Chapter-1/fastai_step_showbatch.png)
+
+    显然，我们的数据并没有任何问题，标签也正确地显示了。
+
+### 构建模型
+
+>   *注：下述代码均为 Kaggle Kernel 上运行所得的结果*
+
+1.  首先，我们通过一行代码来创建一个用 Resnet-34 做特征提取器的 Unet ，具体如下：
+
+    ![fastai_step_create_unet](Pic/Chapter-1/fastai_step_create_unet.png)
+
+    fastai 将会自动下载预训练 Resnet-34 并作为 Unet 的特征提取器。在此模型中我还使用了 `aelf_attention=True` 这将启用[自注意力机制](https://www.zhihu.com/topic/20682987/hot)。`metrics` 我指定为了 [`dice`](https://en.wikipedia.org/wiki/Sørensen–Dice_coefficient )，这是医学影像分割中常用的一种评价指标。`wd=1e-2` 是指模型的权重衰减系数为 0.01。
+
+2.  搜索最优学习率。执行下述指令即可搜索当前网络的学习率，并输出 fastai 建议的学习率：
+
+    ![fastai_step_find_lr](Pic/Chapter-1/fastai_step_find_lr.png)
+
+    从上图中可以知道建议的学习率为 5.25e-0.6，这是整个 lr-loss 曲线负斜率最大的点 ， [5.25e-0.6, 1e-03] 是一个不错的学习率范围。
+
+3.  开始训练。
+
+    ![fastai_step_train_1](Pic/Chapter-1/fastai_step_train_1.png)
+
+    传入的回调函数是为了在每轮验证集 `loss` 下降时，保存我们的模型。由上图可见，经过五轮训练，dice 系数以提升至 `0.857` ，后续我还将进行微调，使网络性能再提高一些。
+
+4.  查看训练期间 loss 、metric、学习率等随训练批次增加的变化。
+
+    -   `loss`
+
+        ![fastai_step_loss_1](Pic/Chapter-1/fastai_step_loss_1.png)
+
+    -   `dice` 系数
+
+        ![fastai_step_dice_1](Pic/Chapter-1/fastai_step_dice_1.png)
+
+    -   学习率
+
+        ![fastai_step_lr_1](Pic/Chapter-1/fastai_step_lr_1.png)
+
     
 
-    显然，我们的数据并没有
+### 微调模型
+
+>   注：下属操作大体同上，就不赘述了
+
+1.  解冻模型，并将模型转为混合精度模式：
+
+    ![fastai_step_unfreeze](Pic/Chapter-1/fastai_step_unfreeze.png)
+
+2.  搜索最佳学习率
+
+    ![fastai_step_find_lr_2](Pic/Chapter-1/fastai_step_find_lr_2.png)
+
+3.  继续训练模型
+
+    ![fastai_step_train_2](Pic/Chapter-1/fastai_step_train_2.png)
+
+    可见经过微调，`dice` 系数由原来的 `0.857` 提升到了 `0.579` 。如果更细致的调整模型的各个超参的话，我相信模型精度还能进一步提高。
+
+------
+
+## 参考及引用
+
+>   [FastAI Image Segmentation](https://towardsdatascience.com/fastai-image-segmentation-eacad8543f6f)
+>   [Fast.ai Lesson 3 notes — Part 1 v3](https://medium.com/@lankinen/fast-ai-lesson-3-notes-part-1-v3-78d47bd11748)
+>   [Semantic Segmentation on Aerial Images using fastai](https://medium.com/swlh/semantic-segmentation-on-aerial-images-using-fastai-a2696e4db127)
+
