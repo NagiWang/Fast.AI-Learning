@@ -51,7 +51,7 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
 - 整理数据
 
-      下载下来之后，解压出来的文件结构是这样的：
+  下载下来之后，解压出来的文件结构是这样的：
 
   ![mri_datasets_tree](https://github.com/NagiSenbon/Fast.AI-Learning/blob/master/Pic/Chapter-1/mri_datasets_tree.png?raw=true)
 
@@ -214,4 +214,6 @@ learn = unet_learner(data, models.resnet18, metrics=dice, wd=1e-2)
 
 ## 参考及引用
 
-> [FastAI Image Segmentation](https://towardsdatascience.com/fastai-image-segmentation-eacad8543f6f) > [Fast.ai Lesson 3 notes — Part 1 v3](https://medium.com/@lankinen/fast-ai-lesson-3-notes-part-1-v3-78d47bd11748) > [Semantic Segmentation on Aerial Images using fastai](https://medium.com/swlh/semantic-segmentation-on-aerial-images-using-fastai-a2696e4db127)
+> [FastAI Image Segmentation](https://towardsdatascience.com/fastai-image-segmentation-eacad8543f6f)
+> [Fast.ai Lesson 3 notes — Part 1 v3](https://medium.com/@lankinen/fast-ai-lesson-3-notes-part-1-v3-78d47bd11748)
+> [Semantic Segmentation on Aerial Images using fastai](https://medium.com/swlh/semantic-segmentation-on-aerial-images-using-fastai-a2696e4db127)
